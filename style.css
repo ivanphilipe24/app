@@ -351,6 +351,38 @@ video {
     font-size: 0.9rem;
     text-align: center;
 }
-.error-msg.hidden {
-    display: none;
+/* Debug Panel */
+.debug-box {
+    background: #1a1d2e;
+    border: 1px solid var(--danger);
+    border-radius: 12px;
+    padding: 1.5rem;
+    margin-top: 2rem;
+    color: #ffcfcf;
 }
+.debug-box h3 {
+    margin-bottom: 1rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    color: var(--danger);
+}
+.debug-box ul {
+    list-style: none;
+    font-family: monospace;
+    font-size: 0.85rem;
+    margin-bottom: 1rem;
+}
+.debug-box li {
+    padding: 0.25rem 0;
+    border-bottom: 1px solid rgba(255,255,255,0.05);
+}
+.debug-box button {
+    background: rgba(255,255,255,0.1);
+    border: none;
+    color: white;
+    padding: 0.5rem 1rem;
+    border-radius: 4px;
+    cursor: pointer;
+}
+.debug-box.hidden { display: none; }

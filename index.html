@@ -98,6 +98,13 @@
                     <div class="video-label">Dispositivo Remoto</div>
                 </div>
             </div>
+
+            <!-- Painel de Diagnóstico (Oculto por padrão) -->
+            <div id="debug-panel" class="debug-box hidden">
+                <h3><i data-lucide="shield-alert"></i> Diagnóstico do Sistema</h3>
+                <ul id="debug-list"></ul>
+                <button onclick="document.getElementById('debug-panel').classList.add('hidden')">Fechar</button>
+            </div>
         </main>
     </div>
 

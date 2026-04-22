@@ -101,6 +101,35 @@ buttons.back.forEach(btn => btn.addEventListener('click', () => {
     showScreen('home');
 }));
 
+// Diagnostics
+function runDiagnostics() {
+    const list = document.getElementById('debug-list');
+    const panel = document.getElementById('debug-panel');
+    list.innerHTML = '';
+    panel.classList.remove('hidden');
+
+    const tests = [
+        { name: 'HTTPS (Contexto Seguro)', value: window.isSecureContext },
+        { name: 'API de Câmera (getUserMedia)', value: !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia) },
+        { name: 'API de Tela (getDisplayMedia)', value: !!(navigator.mediaDevices && navigator.mediaDevices.getDisplayMedia) },
+        { name: 'User Agent', value: navigator.userAgent.substring(0, 50) + '...' },
+        { name: 'Protocolo', value: window.location.protocol }
+    ];
+
+    tests.forEach(test => {
+        const li = document.createElement('li');
+        li.innerHTML = `<strong>${test.name}:</strong> ${test.value ? '✅ SIM' : '❌ NÃO'}`;
+        list.appendChild(li);
+    });
+
+    if (!window.isSecureContext) {
+        const li = document.createElement('li');
+        li.style.color = 'yellow';
+        li.innerText = 'Dica: O compartilhamento de tela EXIGE HTTPS.';
+        list.appendChild(li);
+    }
+}
+
 // --- Transmitter Logic ---
 
 async function startTransmission(type) {
@@ -115,8 +144,13 @@ async function startTransmission(type) {
             displays.localVideo.parentElement.classList.remove('is-screen');
         } else {
             // CHECK FOR DISPLAY MEDIA SUPPORT
-            if (!navigator.mediaDevices.getDisplayMedia) {
-                throw new Error('Seu navegador não suporta compartilhamento de tela.');
+            if (!navigator.mediaDevices || !navigator.mediaDevices.getDisplayMedia) {
+                runDiagnostics();
+                let browserAdvice = 'Tente usar o Google Chrome (Android) ou Safari (iOS).';
+                if (/iPhone|iPad|iPod/i.test(navigator.userAgent)) {
+                    browserAdvice = 'No iPhone, o compartilhamento de tela NÃO é suportado via Web. Tente usar a Câmera.';
+                }
+                throw new Error('Seu navegador não permite gravar a tela. ' + browserAdvice);
             }
             
             localStream = await navigator.mediaDevices.getDisplayMedia({ 
