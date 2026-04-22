@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VisãoRemota - Espelhamento ao Vivo</title>
+    <link rel="stylesheet" href="style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+</head>
+<body>
+    <div class="app-container">
+        <header>
+            <div class="logo">
+                <i data-lucide="eye"></i>
+                <h1>VisãoRemota</h1>
+            </div>
+            <p>Espelhamento P2P instantâneo e seguro.</p>
+        </header>
+
+        <main id="main-content">
+            <!-- Home Screen -->
+            <div id="screen-home" class="screen active">
+                <div class="role-selector">
+                    <button class="card-btn" id="btn-transmitter">
+                        <div class="icon-wrapper"><i data-lucide="cast"></i></div>
+                        <h2>Transmissor</h2>
+                        <p>Compartilhar minha câmera ou tela com outro dispositivo</p>
+                    </button>
+                    
+                    <button class="card-btn" id="btn-receiver">
+                        <div class="icon-wrapper"><i data-lucide="monitor-smartphone"></i></div>
+                        <h2>Receptor</h2>
+                        <p>Ver a transmissão de outro dispositivo usando um código</p>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Transmitter Setup Screen -->
+            <div id="screen-transmitter-setup" class="screen">
+                <button class="back-btn"><i data-lucide="arrow-left"></i> Voltar</button>
+                <h2>O que deseja compartilhar?</h2>
+                <div class="media-selector">
+                    <button class="media-btn" id="btn-share-camera">
+                        <i data-lucide="camera"></i>
+                        <span>Câmera</span>
+                    </button>
+                    <button class="media-btn" id="btn-share-screen">
+                        <i data-lucide="monitor-up"></i>
+                        <span>Tela</span>
+                    </button>
+                </div>
+                <div id="tx-error" class="error-msg hidden"></div>
+            </div>
+
+            <!-- Transmitter Active Screen -->
+            <div id="screen-transmitter-active" class="screen">
+                <button class="back-btn stop-btn"><i data-lucide="x-circle"></i> Parar Transmissão</button>
+                <div class="room-code-container">
+                    <p>Seu código de acesso:</p>
+                    <h2 id="room-code-display">---</h2>
+                </div>
+                <div class="status-indicator waiting" id="tx-status">Aguardando receptor...</div>
+                
+                <div class="video-container local-video">
+                    <video id="local-video" autoplay muted playsinline></video>
+                    <div class="video-label">Você</div>
+                </div>
+            </div>
+
+            <!-- Receiver Screen -->
+            <div id="screen-receiver-setup" class="screen">
+                <button class="back-btn"><i data-lucide="arrow-left"></i> Voltar</button>
+                <h2>Conectar à Transmissão</h2>
+                <div class="input-group">
+                    <input type="text" id="input-room-code" placeholder="Digite o código (ex: 12345)" maxlength="5" autocomplete="off">
+                    <button id="btn-connect" class="primary-btn">Conectar <i data-lucide="arrow-right"></i></button>
+                </div>
+                <div id="rx-error" class="error-msg hidden"></div>
+            </div>
+
+            <!-- Receiver Active Screen -->
+            <div id="screen-receiver-active" class="screen">
+                <button class="back-btn stop-btn"><i data-lucide="x-circle"></i> Desconectar</button>
+                <div class="status-indicator connecting" id="rx-status">Conectando...</div>
+                
+                <div class="video-container remote-video">
+                    <video id="remote-video" autoplay playsinline></video>
+                    <div class="video-label">Dispositivo Remoto</div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script src="app.js"></script>
+    <script>
+        lucide.createIcons();
+    </script>
+</body>
+</html>
