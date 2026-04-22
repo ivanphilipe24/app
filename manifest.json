@@ -1,0 +1,17 @@
+{
+  "name": "VisãoRemota",
+  "short_name": "VisãoRemota",
+  "description": "Espelhamento de Câmera e Tela P2P",
+  "start_url": "index.html",
+  "display": "standalone",
+  "background_color": "#0f111a",
+  "theme_color": "#6366f1",
+  "icons": [
+    {
+      "src": "https://cdn-icons-png.flaticon.com/512/5736/5736173.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

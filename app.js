@@ -36,7 +36,7 @@ const displays = {
 let peer = null;
 let currentConnection = null;
 let localStream = null;
-let mediaType = null; // 'camera' or 'screen'
+let wakeLock = null;
 
 // Navigation
 function showScreen(screenId) {
@@ -48,8 +48,28 @@ function showScreen(screenId) {
     }
 }
 
+// Keep screen on
+async function requestWakeLock() {
+    try {
+        if ('wakeLock' in navigator) {
+            wakeLock = await navigator.wakeLock.request('screen');
+            console.log('Wake Lock ativo');
+        }
+    } catch (err) {
+        console.error(`${err.name}, ${err.message}`);
+    }
+}
+
+function releaseWakeLock() {
+    if (wakeLock) {
+        wakeLock.release();
+        wakeLock = null;
+    }
+}
+
 // Reset everything
 function resetState() {
+    releaseWakeLock();
     if (currentConnection) {
         currentConnection.close();
         currentConnection = null;
@@ -73,40 +93,42 @@ function resetState() {
     inputs.roomCode.value = '';
 }
 
-// Event Listeners for Navigation
-buttons.transmitter.addEventListener('click', () => {
-    showScreen('txSetup');
-});
-
-buttons.receiver.addEventListener('click', () => {
-    showScreen('rxSetup');
-});
-
-buttons.back.forEach(btn => {
-    btn.addEventListener('click', () => {
-        resetState();
-        showScreen('home');
-    });
-});
+// Navigation Events
+buttons.transmitter.addEventListener('click', () => showScreen('txSetup'));
+buttons.receiver.addEventListener('click', () => showScreen('rxSetup'));
+buttons.back.forEach(btn => btn.addEventListener('click', () => {
+    resetState();
+    showScreen('home');
+}));
 
 // --- Transmitter Logic ---
 
 async function startTransmission(type) {
-    mediaType = type;
     displays.txError.classList.add('hidden');
     
     try {
         if (type === 'camera') {
-            localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+            localStream = await navigator.mediaDevices.getUserMedia({ 
+                video: { facingMode: 'user' }, 
+                audio: true 
+            });
             displays.localVideo.parentElement.classList.remove('is-screen');
         } else {
-            localStream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: true });
+            // CHECK FOR DISPLAY MEDIA SUPPORT
+            if (!navigator.mediaDevices.getDisplayMedia) {
+                throw new Error('Seu navegador não suporta compartilhamento de tela.');
+            }
+            
+            localStream = await navigator.mediaDevices.getDisplayMedia({ 
+                video: true, 
+                audio: true 
+            });
             displays.localVideo.parentElement.classList.add('is-screen');
         }
         
         displays.localVideo.srcObject = localStream;
+        await requestWakeLock(); // Manter tela ligada durante transmissão
         
-        // Generate random 5-digit code
         const code = Math.floor(10000 + Math.random() * 90000).toString();
         const peerId = PREFIX + code;
         
@@ -115,7 +137,7 @@ async function startTransmission(type) {
         
         initTransmitterPeer(peerId);
 
-        // Listen for user stopping screen share via browser UI
+        // Se o usuário parar de compartilhar pelo aviso do sistema (Android/PC)
         localStream.getVideoTracks()[0].onended = () => {
             resetState();
             showScreen('home');
@@ -123,7 +145,9 @@ async function startTransmission(type) {
 
     } catch (err) {
         console.error(err);
-        displays.txError.innerText = 'Erro ao acessar mídia: ' + err.message;
+        let errorMsg = 'Erro ao acessar mídia: ' + err.message;
+        if (err.name === 'NotAllowedError') errorMsg = 'Permissão negada pelo usuário.';
+        displays.txError.innerText = errorMsg;
         displays.txError.classList.remove('hidden');
     }
 }
@@ -132,23 +156,15 @@ buttons.shareCamera.addEventListener('click', () => startTransmission('camera'))
 buttons.shareScreen.addEventListener('click', () => startTransmission('screen'));
 
 function initTransmitterPeer(peerId) {
-    peer = new Peer(peerId, {
-        debug: 2
-    });
-
-    peer.on('open', (id) => {
-        console.log('Transmitter Peer created with ID:', id);
-    });
+    peer = new Peer(peerId, { debug: 1 });
 
     peer.on('error', (err) => {
         displays.txError.innerText = 'Erro de conexão: ' + err.message;
         displays.txError.classList.remove('hidden');
     });
 
-    // Wait for receiver to connect via data channel first
     peer.on('connection', (conn) => {
         if (currentConnection) {
-            // Already connected to someone, reject
             conn.close();
             return;
         }
@@ -158,14 +174,7 @@ function initTransmitterPeer(peerId) {
         displays.txStatus.innerText = 'Receptor conectado! Transmitindo...';
         
         conn.on('open', () => {
-            // Call the receiver
-            console.log('Calling receiver:', conn.peer);
             const call = peer.call(conn.peer, localStream);
-            
-            call.on('error', (err) => {
-                console.error('Call error', err);
-            });
-            
             call.on('close', () => {
                 displays.txStatus.className = 'status-indicator waiting';
                 displays.txStatus.innerText = 'Receptor desconectado. Aguardando novo...';
@@ -175,7 +184,7 @@ function initTransmitterPeer(peerId) {
 
         conn.on('close', () => {
             displays.txStatus.className = 'status-indicator waiting';
-            displays.txStatus.innerText = 'Receptor desconectado. Aguardando novo...';
+            displays.txStatus.innerText = 'Receptor desconectado.';
             currentConnection = null;
         });
     });
@@ -199,60 +208,46 @@ buttons.connect.addEventListener('click', () => {
 });
 
 function initReceiverPeer(targetId) {
-    peer = new Peer({
-        debug: 2
-    });
+    peer = new Peer({ debug: 1 });
 
-    peer.on('open', (id) => {
-        console.log('Receiver Peer created with ID:', id);
-        
-        // Connect to transmitter to trigger signaling
-        displays.rxStatus.innerText = 'Sinalizando transmissor...';
+    peer.on('open', async (id) => {
+        await requestWakeLock(); // Manter tela ligada ao assistir
         currentConnection = peer.connect(targetId);
         
         currentConnection.on('open', () => {
             displays.rxStatus.innerText = 'Aguardando vídeo...';
         });
 
-        currentConnection.on('error', (err) => {
-            displays.rxStatus.className = 'status-indicator error';
-            displays.rxStatus.innerText = 'Falha ao conectar: ' + err.message;
-        });
-        
         currentConnection.on('close', () => {
             displays.rxStatus.className = 'status-indicator waiting';
-            displays.rxStatus.innerText = 'Transmissor encerrou a conexão.';
+            displays.rxStatus.innerText = 'Conexão encerrada.';
             displays.remoteVideo.srcObject = null;
+            releaseWakeLock();
         });
     });
 
-    // Receive the call
     peer.on('call', (call) => {
         displays.rxStatus.className = 'status-indicator connected';
         displays.rxStatus.innerText = 'Recebendo transmissão ao vivo!';
-        
-        // Answer without a stream
         call.answer(); 
-        
         call.on('stream', (remoteStream) => {
             displays.remoteVideo.srcObject = remoteStream;
-            // Unmute the video element so audio works
             displays.remoteVideo.muted = false;
-        });
-        
-        call.on('close', () => {
-            displays.rxStatus.className = 'status-indicator waiting';
-            displays.rxStatus.innerText = 'Transmissão pausada/encerrada.';
         });
     });
 
     peer.on('error', (err) => {
         let msg = err.message;
-        if (err.type === 'peer-unavailable') {
-            msg = 'Código inválido ou transmissor offline.';
-        }
+        if (err.type === 'peer-unavailable') msg = 'Código inválido ou transmissor offline.';
         displays.rxStatus.className = 'status-indicator';
         displays.rxStatus.style.color = 'var(--danger)';
         displays.rxStatus.innerText = 'Erro: ' + msg;
     });
 }
+
+// Reiniciar Wake Lock se a aba voltar a ficar visível
+document.addEventListener('visibilitychange', async () => {
+    if (wakeLock !== null && document.visibilityState === 'visible') {
+        await requestWakeLock();
+    }
+});
